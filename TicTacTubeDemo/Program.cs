@@ -7,11 +7,11 @@ using log4net;
 using log4net.Config;
 using NYoutubeDL.Helpers;
 using TagLib;
+using Telegram.Bot.Args;
 using Telegram.Bot.Types;
-using TicTacTubeCore.Genius.Processors.Media.Songs;
-using TicTacTubeCore.Pipelines;
-using TicTacTubeCore.Processors.Logical;
-using TicTacTubeCore.Processors.Media.Songs;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineKeyboardButtons;
+using Telegram.Bot.Types.ReplyMarkups;
 using TicTacTubeCore.Sources.Files;
 using TicTacTubeCore.Telegram.Schedulers;
 using TicTacTubeCore.YoutubeDL.Sources.Files.External;
@@ -26,23 +26,7 @@ namespace TicTacTubeDemo
 			var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
 			XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 
-			var scheduler = new TelegramScheduler(File.ReadAllText("telegram.token"));
-			var pipelineBuilder = new DataPipelineBuilder();
-
-			var fetcher = new GeniusSongInfoFetcher(File.ReadAllText("genius.token"));
-			var extractor = new SongInfoExtractor();
-
-			pipelineBuilder.Append(new LambdaProcessor(source =>
-			{
-				var info = extractor.ExtractFromString(source.FileName);
-
-				info.WriteToFile(source.FileInfo.FullName);
-				info = fetcher.ExtractAsyncTask(info).GetAwaiter().GetResult();
-				info.WriteToFile(source.FileInfo.FullName);
-
-				return source;
-			}));
-			scheduler.Add(pipelineBuilder);
+            var scheduler = new TelegramScheduler(File.ReadAllText("telegram.token"));
 
 			scheduler.Start();
 
@@ -53,13 +37,46 @@ namespace TicTacTubeDemo
 		{
 			private static readonly ILog Log = LogManager.GetLogger(typeof(TelegramScheduler));
 
-			public TelegramScheduler(string apiToken, UserList userList = UserList.None, IWebProxy proxy = null) : base(apiToken,
+            public TelegramScheduler(string apiToken, UserList userList = UserList.None, IWebProxy proxy = null) : base(apiToken,
 				userList, proxy)
 			{
 				WelcomeText = "Hey there! Just send me youtube links ... :)";
 			}
 
-			protected override void ProcessTextMessage(Message message)
+            protected override bool ProcessCustomCommands(Message message)
+            {
+                if(message.Text.StartsWith("/test")) {
+                    SendTextMessage(message, "Heyho");
+                }
+                return true;
+            }
+
+            protected async override void BotOnInlineQuery(object sender, InlineQueryEventArgs inlineQueryEventArgs)
+            {
+                Log.Info("Inline called " + inlineQueryEventArgs.InlineQuery.From.FirstName);
+
+                var inlineKeyboard = new InlineKeyboardMarkup(new[]
+                    {
+                        new [] // first row
+                        {
+                            InlineKeyboardButton.WithCallbackData("1.1"),
+                            InlineKeyboardButton.WithCallbackData("1.2"),
+                        },
+                        new [] // second row
+                        {
+                            InlineKeyboardButton.WithCallbackData("2.1"),
+                            InlineKeyboardButton.WithCallbackData("2.2"),
+                        }
+                    });
+
+                await BotClient.SendTextMessageAsync(
+                    inlineQueryEventArgs.InlineQuery.Id,
+                    "Choose",
+                    replyMarkup: inlineKeyboard);
+
+            }
+
+            protected override void ProcessTextMessage(Message message)
 			{
 				Task.Run(() =>
 				{

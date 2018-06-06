@@ -75,8 +75,9 @@ namespace TicTacTubeCore.Telegram.Schedulers
 				throw new ArgumentException("Value cannot be null or whitespace.", nameof(apiToken));
 			if (!Enum.IsDefined(typeof(UserList), userList))
 				throw new InvalidEnumArgumentException(nameof(userList), (int) userList, typeof(UserList));
-
+            
 			BotClient = proxy == null ? new TelegramBotClient(apiToken) : new TelegramBotClient(apiToken, proxy);
+
 			UserList = userList;
 
 			if (UserList != UserList.None)
@@ -87,10 +88,22 @@ namespace TicTacTubeCore.Telegram.Schedulers
 		protected override void ExecuteStart()
 		{
 			BotClient.StartReceiving();
-			BotClient.OnMessage += OnMessageReceived;
+            BotClient.OnMessage += OnMessageReceived;
+            BotClient.OnInlineQuery += BotOnInlineQuery;
 
 			Log.Info("Telegram bot is now running...");
 		}
+
+        /// <summary>
+        ///     This method gets called, when a user calls the bot via inlinemode.
+        ///     Override this method to add inline capabilities
+        /// </summary>
+        /// <param name="sender">The sender of the event</param>
+        /// <param name="inlineQueryEventArgs">The messageeventarg that contain all information from the new message.</param>
+        protected virtual void BotOnInlineQuery(object sender, InlineQueryEventArgs inlineQueryEventArgs)
+        {
+            
+        }
 
 		/// <summary>
 		///     This message will be executed once a bot receives a new mesasge. It checks whether the
